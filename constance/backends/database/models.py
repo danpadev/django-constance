@@ -1,7 +1,8 @@
 from django.db import models
+from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
+from django.utils.translation import ugettext_lazy as _, ugettext
 
-from django.utils.translation import ugettext_lazy as _
 
 try:
     from picklefield import PickledObjectField
@@ -12,8 +13,8 @@ except ImportError:
 
 
 class Constance(models.Model):
-    key = models.CharField(max_length=255, unique=True)
-    value = PickledObjectField()
+    key = models.CharField(_('key'), max_length=255, unique=True)
+    value = PickledObjectField(_('value'))
 
     class Meta:
         verbose_name = _('constance')
@@ -21,4 +22,4 @@ class Constance(models.Model):
         db_table = 'constance_config'
 
     def __unicode__(self):
-        return self.key
+        return u'{} ({})'.format(ugettext(settings.CONSTANCE_CONFIG[self.key][1]), self.key)
