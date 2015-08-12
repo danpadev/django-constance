@@ -21,7 +21,7 @@ def find_version(*file_paths):
 
 setup(
     name='django-constance',
-    version='1.0.1.1',
+    version=find_version("constance", "__init__.py"),
     url="http://github.com/jezdez/django-constance",
     description='Django live settings with pluggable backends, including Redis.',
     long_description=read('README.rst'),
