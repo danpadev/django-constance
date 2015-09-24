@@ -19,6 +19,7 @@ from django.utils.translation import ugettext_lazy as _
 
 
 from . import LazyConfig, settings
+from .utils import get_default_value, get_default_representation
 
 config = LazyConfig()
 
@@ -40,6 +41,7 @@ FIELDS = {
     date: (fields.DateField, {'widget': widgets.AdminDateWidget}),
     time: (fields.TimeField, {'widget': widgets.AdminTimeWidget}),
     float: (fields.FloatField, {'widget': NUMERIC_WIDGET}),
+    tuple: (fields.ChoiceField, {'widget': forms.Select})
 }
 
 if not six.PY3:
@@ -56,8 +58,8 @@ class ConstanceForm(forms.Form):
         super(ConstanceForm, self).__init__(*args, initial=initial, **kwargs)
         version_hash = hashlib.md5()
 
-        for name, (default, help_text) in settings.CONFIG.items():
-            config_type = type(default)
+        for name, (values, help_text) in settings.CONFIG.items():
+            config_type = type(values)
             if config_type not in FIELDS:
                 raise ImproperlyConfigured(_("Constance doesn't support "
                                              "config values of the type "
@@ -66,6 +68,8 @@ class ConstanceForm(forms.Form):
                                            % {'config_type': config_type,
                                               'name': name})
             field_class, kwargs = FIELDS[config_type]
+            if config_type is tuple:
+                kwargs['choices'] = values
             self.fields[name] = field_class(label=name, **kwargs)
 
             version_hash.update(smart_bytes(initial.get(name, '')))
@@ -103,12 +107,13 @@ class ConstanceAdmin(admin.ModelAdmin):
         # First load a mapping between config name and default value
         if not self.has_change_permission(request, None):
             raise PermissionDenied
-        default_initial = ((name, default)
-            for name, (default, help_text) in settings.CONFIG.items())
+        default_initial = ((name, get_default_value(values))
+                           for name, (values, help_text) in settings.CONFIG.items())
+
         # Then update the mapping with actually values from the backend
         initial = dict(default_initial,
-            **dict(config._backend.mget(settings.CONFIG.keys())))
-        form = ConstanceForm(initial=initial)
+                       **dict(config._backend.mget(settings.CONFIG.keys())))
+
         if request.method == 'POST':
             form = ConstanceForm(data=request.POST, initial=initial)
             if form.is_valid():
@@ -120,6 +125,9 @@ class ConstanceAdmin(admin.ModelAdmin):
                     _('Live settings updated successfully.'),
                 )
                 return HttpResponseRedirect('.')
+        else:
+            form = ConstanceForm(initial=initial)
+
         context = {
             'config': [],
             'title': _('Constance config'),
@@ -128,18 +136,19 @@ class ConstanceAdmin(admin.ModelAdmin):
             'form': form,
             'media': self.media + form.media,
         }
-        for name, (default, help_text) in settings.CONFIG.items():
+        for name, (values, help_text) in settings.CONFIG.items():
             # First try to load the value from the actual backend
             value = initial.get(name)
             # Then if the returned value is None, get the default
             if value is None:
+                # TODO(dmu) LOW: It looks like this "if" is redundant
                 value = getattr(config, name)
             context['config'].append({
                 'name': name,
-                'default': localize(default),
+                'default': localize(get_default_representation(values)),
                 'help_text': _(help_text),
                 'value': localize(value),
-                'modified': value != default,
+                'modified': value != get_default_value(values),
                 'form_field': form[name],
             })
         context['config'].sort(key=itemgetter('name'))
