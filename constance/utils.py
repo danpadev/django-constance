@@ -1,5 +1,7 @@
 from importlib import import_module
 
+from django.utils.translation import ugettext_lazy as _
+
 
 def import_module_attr(path):
     package, module = path.rsplit('.', 1)
@@ -17,4 +19,4 @@ def get_default_value(value):
 
 def get_default_representation(value):
     item = get_default_item(value)
-    return item[1] if isinstance(item, tuple) else item
+    return _(item[1]) if isinstance(item, tuple) else item

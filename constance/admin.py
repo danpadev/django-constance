@@ -69,7 +69,8 @@ class ConstanceForm(forms.Form):
                                               'name': name})
             field_class, kwargs = FIELDS[config_type]
             if config_type is tuple:
-                kwargs['choices'] = values
+                kwargs['choices'] = ((internal, _(representation))
+                                     for internal, representation in values)
             self.fields[name] = field_class(label=name, **kwargs)
 
             version_hash.update(smart_bytes(initial.get(name, '')))
