@@ -7,18 +7,19 @@ class Config(object):
     """
     def __init__(self):
         super(Config, self).__setattr__('_backend',
-            utils.import_module_attr(settings.BACKEND)())
+                                        utils.import_module_attr(settings.BACKEND)())
 
     def __getattr__(self, key):
         try:
-            default, help_text = settings.CONFIG[key]
+            values, help_text = settings.CONFIG[key]
         except KeyError:
             raise AttributeError(key)
+
         result = self._backend.get(key)
         if result is None:
-            result = default
-            setattr(self, key, default)
-            return result
+            result = utils.get_default_value(values)
+            setattr(self, key, result)
+
         return result
 
     def __setattr__(self, key, value):
